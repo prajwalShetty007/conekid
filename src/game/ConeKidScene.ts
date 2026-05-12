@@ -68,6 +68,140 @@ interface SceneData {
   totalBearings?: number;
 }
 
+interface FairyRiddle {
+  question: string;
+  options: [string, string, string];
+  correctOption: 1 | 2 | 3;
+}
+
+const FAIRY_RIDDLES: FairyRiddle[] = [
+  {
+    question: "What has keys but cannot open locks?",
+    options: ["A keyboard", "A cave door", "A treasure chest"],
+    correctOption: 1,
+  },
+  {
+    question: "What gets wetter the more it dries?",
+    options: ["A towel", "A rain cloud", "A river stone"],
+    correctOption: 1,
+  },
+  {
+    question: "What has a face and two hands but no arms or legs?",
+    options: ["A clock", "A scarecrow", "A palace guard"],
+    correctOption: 1,
+  },
+  {
+    question: "What can travel around the world while staying in a corner?",
+    options: ["A stamp", "A compass", "A map"],
+    correctOption: 1,
+  },
+  {
+    question: "What has a neck but no head?",
+    options: ["A bottle", "A chicken", "A helmet"],
+    correctOption: 1,
+  },
+  {
+    question: "What has many teeth but cannot bite?",
+    options: ["A comb", "A gear trap", "A saw monster"],
+    correctOption: 1,
+  },
+  {
+    question: "What has words but never speaks?",
+    options: ["A book", "A villager", "A trumpet"],
+    correctOption: 1,
+  },
+  {
+    question: "What can you catch but not throw?",
+    options: ["A cold", "A crate", "A bearing"],
+    correctOption: 1,
+  },
+  {
+    question: "What has one eye but cannot see?",
+    options: ["A needle", "A telescope", "A lantern"],
+    correctOption: 1,
+  },
+  {
+    question: "What begins with T, ends with T, and has T inside?",
+    options: ["A teapot", "A tunnel", "A tower"],
+    correctOption: 1,
+  },
+  {
+    question: "What can fill a room but takes up no space?",
+    options: ["Light", "A barrel", "A cloud"],
+    correctOption: 1,
+  },
+  {
+    question: "What has legs but does not walk?",
+    options: ["A table", "A knight", "A chicken"],
+    correctOption: 1,
+  },
+  {
+    question: "What has branches but no leaves or fruit?",
+    options: ["A bank", "A forest", "A palace garden"],
+    correctOption: 1,
+  },
+  {
+    question: "What comes down but never goes up?",
+    options: ["Rain", "A ladder", "A balloon"],
+    correctOption: 1,
+  },
+  {
+    question: "What has a head and a tail but no body?",
+    options: ["A coin", "A comet", "A dragon flag"],
+    correctOption: 1,
+  },
+  {
+    question: "What is full of holes but still holds water?",
+    options: ["A sponge", "A bucket", "A cave wall"],
+    correctOption: 1,
+  },
+  {
+    question: "What gets bigger the more you take away?",
+    options: ["A hole", "A backpack", "A fire"],
+    correctOption: 1,
+  },
+  {
+    question: "What has a ring but no finger?",
+    options: ["A telephone", "A glove", "A crown"],
+    correctOption: 1,
+  },
+  {
+    question: "What has cities but no houses, forests but no trees, and water but no fish?",
+    options: ["A map", "A village", "A painting"],
+    correctOption: 1,
+  },
+  {
+    question: "What has an end but no beginning?",
+    options: ["A stick", "A circle", "A song"],
+    correctOption: 1,
+  },
+  {
+    question: "What runs but never walks?",
+    options: ["A river", "A boot", "A wagon"],
+    correctOption: 1,
+  },
+  {
+    question: "What can be cracked, made, told, and played?",
+    options: ["A joke", "A shield", "A door"],
+    correctOption: 1,
+  },
+  {
+    question: "What belongs to you, but others use it more than you do?",
+    options: ["Your name", "Your sword", "Your shoes"],
+    correctOption: 1,
+  },
+  {
+    question: "What is always in front of you but cannot be seen?",
+    options: ["The future", "A wall", "A mountain"],
+    correctOption: 1,
+  },
+  {
+    question: "What has four wheels and flies?",
+    options: ["A garbage cart", "A royal carriage", "A race wagon"],
+    correctOption: 1,
+  },
+];
+
 export class ConeKidScene extends Phaser.Scene {
   private levelNumber: 1 | 2 | 3 = 1;
   private config!: LevelConfig;
@@ -116,6 +250,7 @@ export class ConeKidScene extends Phaser.Scene {
   private gameOver = false;
   private fairyRiddleActive = false;
   private fairyOverlay: Phaser.GameObjects.Container | null = null;
+  private fairyCorrectAnswer: 1 | 2 | 3 = 1;
 
   constructor() {
     super("cone-kid-scene");
@@ -381,8 +516,22 @@ export class ConeKidScene extends Phaser.Scene {
       this.onPlayerPickBearing(obj1 as ArcadeSprite, obj2 as ArcadeSprite);
     });
 
-    this.physics.add.collider(this.player, this.enemies, (obj1, obj2) => {
-      this.onPlayerTouchEnemy(obj1 as ArcadeSprite, obj2 as ArcadeSprite);
+    this.physics.add.collider(
+      this.player,
+      this.enemies,
+      (obj1, obj2) => {
+        this.onPlayerTouchEnemy(obj1 as ArcadeSprite, obj2 as ArcadeSprite);
+      },
+      (_obj1, obj2) => {
+        return !this.isLevelThreeChicken(obj2 as ArcadeSprite);
+      },
+    );
+
+    this.physics.add.overlap(this.player, this.enemies, (obj1, obj2) => {
+      const enemy = obj2 as ArcadeSprite;
+      if (this.isLevelThreeChicken(enemy)) {
+        this.onPlayerTouchEnemy(obj1 as ArcadeSprite, enemy);
+      }
     });
 
     this.physics.add.collider(this.crates, this.enemies, (obj1, obj2) => {
@@ -766,6 +915,14 @@ export class ConeKidScene extends Phaser.Scene {
 
   private onPlayerTouchEnemy(_player: ArcadeSprite, enemy: ArcadeSprite): void {
     const enemyType = (enemy.getData("type") as EnemyType) ?? "bolt";
+
+    if (this.isLevelThreeChicken(enemy) && this.isPlayerStompingEnemy(enemy)) {
+      this.defeatEnemy(enemy, true);
+      this.player.setVelocityY(-280);
+      this.showPrompt("Chicken stomp!", 700);
+      return;
+    }
+
     const boltPack = enemyType === "bolt" ? this.countNearbyEnemies(enemy, 120) : 1;
     const damage = enemyType === "bolt" && boltPack >= 3 ? 2 : 1;
     const push = this.player.x < enemy.x ? -230 : 230;
@@ -780,6 +937,19 @@ export class ConeKidScene extends Phaser.Scene {
           ? "Bolt Brute landed a hit."
           : "Fried chicken swarm pecked Cone Kid.";
     this.damagePlayer(damage, reason);
+  }
+
+  private isLevelThreeChicken(enemy: ArcadeSprite): boolean {
+    return this.levelNumber === 3 && enemy.getData("type") === "chicken";
+  }
+
+  private isPlayerStompingEnemy(enemy: ArcadeSprite): boolean {
+    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    const enemyBody = enemy.body as Phaser.Physics.Arcade.Body;
+    const playerBottom = playerBody.bottom;
+    const stompWindow = enemyBody.top + 18;
+
+    return playerBody.velocity.y > 60 && playerBottom <= stompWindow;
   }
 
   private onCrateHitEnemy(crate: ArcadeSprite, enemy: ArcadeSprite): void {
@@ -902,6 +1072,8 @@ export class ConeKidScene extends Phaser.Scene {
     this.transitioning = true;
     this.physics.world.pause();
     hardRockAudio.playSfx("lifeLost");
+    const fairyRiddle = this.selectFairyRiddle();
+    this.fairyCorrectAnswer = fairyRiddle.correctOption;
 
     if (this.fairyOverlay) {
       this.fairyOverlay.destroy();
@@ -913,12 +1085,12 @@ export class ConeKidScene extends Phaser.Scene {
       .rectangle(512, 360, 1024, 720, 0x101521, 0.72)
       .setOrigin(0.5);
     const panel = this.add
-      .rectangle(512, 360, 760, 410, 0xf9f0d8, 0.96)
+      .rectangle(512, 360, 800, 460, 0xf9f0d8, 0.96)
       .setStrokeStyle(6, 0xc59b52);
     const fairy = this.add.image(330, 335, "fairy-godmother").setScale(1.35);
     const bucket = this.add.image(388, 412, "chicken-bucket").setScale(1.1);
 
-    const title = this.add.text(512, 218, "Fairy Godmother Appears!", {
+    const title = this.add.text(512, 196, "Fairy Godmother Appears!", {
       fontFamily: "Verdana",
       fontSize: "34px",
       color: "#452407",
@@ -928,25 +1100,26 @@ export class ConeKidScene extends Phaser.Scene {
 
     const riddle = this.add.text(
       512,
-      294,
+      270,
       [
         "She gives you a bucket of fried chicken and asks:",
-        "\"What has keys but cannot open locks?\"",
+        `"${fairyRiddle.question}"`,
         "",
-        "1) A keyboard",
-        "2) A cave door",
-        "3) A treasure chest",
+        `1) ${fairyRiddle.options[0]}`,
+        `2) ${fairyRiddle.options[1]}`,
+        `3) ${fairyRiddle.options[2]}`,
       ].join("\n"),
       {
         fontFamily: "Verdana",
-        fontSize: "23px",
+        fontSize: "22px",
         color: "#2c2f41",
         align: "center",
         lineSpacing: 5,
+        wordWrap: { width: 620 },
       },
     ).setOrigin(0.5, 0);
 
-    const footer = this.add.text(512, 558, "Press 1, 2, or 3 to answer.", {
+    const footer = this.add.text(512, 590, "Press 1, 2, or 3 to answer.", {
       fontFamily: "Verdana",
       fontSize: "24px",
       color: "#5b2e11",
@@ -959,6 +1132,26 @@ export class ConeKidScene extends Phaser.Scene {
     this.fairyRiddleActive = true;
 
     this.showPrompt(`${reason} Fairy challenge: answer the riddle to stay in Level 3.`, 999999);
+  }
+
+  private selectFairyRiddle(): FairyRiddle {
+    const baseRiddle = FAIRY_RIDDLES[Phaser.Math.Between(0, FAIRY_RIDDLES.length - 1)];
+    const options = baseRiddle.options.map((option, index) => ({
+      option,
+      correct: index === baseRiddle.correctOption - 1,
+    }));
+
+    for (let i = options.length - 1; i > 0; i -= 1) {
+      const swapIndex = Phaser.Math.Between(0, i);
+      [options[i], options[swapIndex]] = [options[swapIndex], options[i]];
+    }
+
+    const correctOption = (options.findIndex((entry) => entry.correct) + 1) as 1 | 2 | 3;
+    return {
+      question: baseRiddle.question,
+      options: options.map((entry) => entry.option) as [string, string, string],
+      correctOption,
+    };
   }
 
   private handleFairyRiddleInput(): void {
@@ -975,7 +1168,7 @@ export class ConeKidScene extends Phaser.Scene {
       return;
     }
 
-    const correct = answer === 1;
+    const correct = answer === this.fairyCorrectAnswer;
     this.resolveFairyRiddle(correct);
   }
 
@@ -1057,11 +1250,50 @@ export class ConeKidScene extends Phaser.Scene {
     }
 
     this.gameFinished = true;
+    this.showVillagerCelebration();
     this.showBanner("You Reached The Palace!");
     this.showPrompt(
       `SKF Cone Kid Game complete with ${this.lives} lives left. Press R to play again.`,
       999999,
     );
+  }
+
+  private showVillagerCelebration(): void {
+    const cheeringVillagers = ([1, 2, 3] as const).flatMap((level) => {
+      return this.getLevelConfig(level).villagers;
+    });
+    const spacing = 78;
+    const startX = 512 - ((cheeringVillagers.length - 1) * spacing) / 2;
+    const crowd = cheeringVillagers.map((villagerSpec, index) => {
+      return this.add
+        .image(startX + index * spacing, 630 + (index % 2) * 8, villagerSpec.texture)
+        .setTint(villagerSpec.tint)
+        .setScale(1.28)
+        .setScrollFactor(0)
+        .setDepth(45);
+    });
+
+    this.tweens.add({
+      targets: crowd,
+      y: "-=18",
+      angle: { from: -10, to: 10 },
+      duration: 260,
+      yoyo: true,
+      repeat: -1,
+      stagger: 35,
+    });
+
+    this.add
+      .text(512, 548, "The villagers cheer for Cone Kid!", {
+        fontFamily: "Verdana",
+        fontSize: "26px",
+        color: "#fff3cd",
+        stroke: "#1f2836",
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(46);
   }
 
   private updateAmbientPrompt(): void {
